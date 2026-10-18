@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <Color x:Key="BrandRed">#BD3334</Color>
+    <Color x:Key="BrandRedDark">#A72829</Color>
+    <Color x:Key="CanvasWhite">#FFFFFF</Color>
+    <Color x:Key="SurfaceSoft">#F1F1F1</Color>
+    <Color x:Key="SurfaceCard">#F4F5F7</Color>
+    <Color x:Key="SurfaceSubtle">#F2F2F2</Color>
+    <Color x:Key="PageBackdrop">#F2F3F5</Color>
+    <Color x:Key="PrimaryText">#111111</Color>
+    <Color x:Key="SecondaryText">#666666</Color>
+    <Color x:Key="BodyTextMuted">#555555</Color>
+    <Color x:Key="MutedText">#777777</Color>
+    <Color x:Key="SubtleText">#999999</Color>
+    <Color x:Key="DisabledText">#D0D0D0</Color>
+    <Color x:Key="SubtleBorder">#E0E0E0</Color>
+    <Color x:Key="SoftBorder">#E5E5E5</Color>
+    <Color x:Key="MediumBorder">#D8D8D8</Color>
+    <Color x:Key="StrongBorder">#858585</Color>
+    <Color x:Key="Divider">#BFBFBF</Color>
+    <Color x:Key="EmergencyRed">#B93636</Color>
+    <Color x:Key="DirectoryGreen">#83A26F</Color>
+    <Color x:Key="ShadowColor">#40000000</Color>
+
+    <x:Double x:Key="ReferenceCanvasWidth">393</x:Double>
+    <x:Double x:Key="ReferenceCanvasHeight">852</x:Double>
+    <x:Double x:Key="DesktopLayoutBreakpoint">900</x:Double>
+    <x:Double x:Key="DesktopFramePadding">20</x:Double>
+    <x:Double x:Key="MinimumTouchTarget">44</x:Double>
+    <x:Double x:Key="ActionButtonCornerRadius">11</x:Double>
+    <x:Double x:Key="OutlinedButtonCornerRadius">10</x:Double>
+    <x:Double x:Key="EntryCornerRadius">9</x:Double>
+    <x:Double x:Key="PageTransitionDuration">210</x:Double>
+
+    <Style x:Key="ActionButtonStyle" TargetType="Button">
+        <Setter Property="MinimumHeightRequest" Value="{StaticResource MinimumTouchTarget}" />
+        <Setter Property="MinimumWidthRequest" Value="{StaticResource MinimumTouchTarget}" />
+        <Setter Property="CornerRadius" Value="{StaticResource ActionButtonCornerRadius}" />
+        <Setter Property="FontFamily" Value="OpenSansRegular" />
+    </Style>
+
+    <Style x:Key="OutlinedButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonStyle}">
+        <Setter Property="BackgroundColor" Value="{StaticResource CanvasWhite}" />
+        <Setter Property="BorderColor" Value="{StaticResource BrandRed}" />
+        <Setter Property="BorderWidth" Value="2" />
+        <Setter Property="CornerRadius" Value="{StaticResource OutlinedButtonCornerRadius}" />
+    </Style>
+
+    <Style x:Key="FormEntryStyle" TargetType="Entry">
+        <Setter Property="FontFamily" Value="OpenSansRegular" />
+        <Setter Property="TextColor" Value="{StaticResource PrimaryText}" />
+        <Setter Property="MinimumHeightRequest" Value="{StaticResource MinimumTouchTarget}" />
+    </Style>
+</ResourceDictionary>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Emergency_cameroun.MainPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    BackgroundColor="White"
+    Padding="0"
+    Shell.NavBarIsVisible="False"
+    Shell.TabBarIsVisible="False">
+    <Grid x:Name="Viewport" BackgroundColor="White" SizeChanged="OnViewportSizeChanged">
+        <Border
+            x:Name="PresentationFrame"
+            HorizontalOptions="Center"
+            VerticalOptions="Center"
+            BackgroundColor="White"
+            StrokeThickness="0"
+            Padding="0">
+            <ContentView
+                x:Name="ScreenHost"
+                HorizontalOptions="Fill"
+                VerticalOptions="Fill"
+                BackgroundColor="White" />
+        </Border>
+    </Grid>
+</ContentPage>

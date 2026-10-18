@@ -1,0 +1,18 @@
+<api>
+  <jcw-types>
+    <type name="MainActivity" package="crc64039ef207ee0fd95c" application_java_class="android.app.Application" mono_runtime_initialization="mono.MonoPackageManager.LoadApplication (context);" extends_type="crc6488302ad6e9e4df1a.MauiAppCompatActivity" partial_assembly_qualified_name="Emergency_cameroun.MainActivity, Emergency_cameroun">
+      <constructors>
+        <constructor name="MainActivity" method="n_.ctor:()V:" jni_signature="()V" managed_parameters="" retval="void" is_dynamically_registered="True" />
+        <constructor name="MainActivity" method="n_.ctor:(I)V:" jni_signature="(I)V" managed_parameters="System.Int32, System.Private.CoreLib" params="int p0" retval="void" is_dynamically_registered="True" super_call="p0" activate_call="p0" />
+      </constructors>
+      <methods>
+        <method name="onCreate" method="n_onCreate:(Landroid/os/Bundle;)V:GetOnCreate_Landroid_os_Bundle_Handler" jni_signature="(Landroid/os/Bundle;)V" params="android.os.Bundle p0" retval="void" is_dynamically_registered="True" super_call="p0" activate_call="p0" />
+      </methods>
+    </type>
+    <type name="MainApplication" package="crc64039ef207ee0fd95c" application_java_class="android.app.Application" mono_runtime_initialization="mono.MonoPackageManager.LoadApplication (context);" extends_type="crc6488302ad6e9e4df1a.MauiApplication" is_application="True" partial_assembly_qualified_name="Emergency_cameroun.MainApplication, Emergency_cameroun" application_constructor="MainApplication" />
+  </jcw-types>
+  <acw-types partial-assembly-name="Emergency_cameroun" module-name="Emergency_cameroun.dll">
+    <type assembly-qualified-name="Emergency_cameroun.MainActivity, Emergency_cameroun, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null" compat-jni-name="emergency_cameroun.MainActivity" java-key="crc64039ef207ee0fd95c.MainActivity" managed-key="Emergency_cameroun.MainActivity" partial-assembly-qualified-name="Emergency_cameroun.MainActivity, Emergency_cameroun" />
+    <type assembly-qualified-name="Emergency_cameroun.MainApplication, Emergency_cameroun, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null" compat-jni-name="emergency_cameroun.MainApplication" java-key="crc64039ef207ee0fd95c.MainApplication" managed-key="Emergency_cameroun.MainApplication" partial-assembly-qualified-name="Emergency_cameroun.MainApplication, Emergency_cameroun" />
+  </acw-types>
+</api>

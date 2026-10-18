@@ -1,0 +1,10 @@
+<api type="debug" assembly-name="Emergency_cameroun" mvid="54df109a4afc489cadb734b9511481d8">
+  <java-to-managed>
+    <entry java-name="crc64039ef207ee0fd95c/MainActivity" managed-name="Emergency_cameroun.MainActivity, Emergency_cameroun" managed-type-token-id="33554441" />
+    <entry java-name="crc64039ef207ee0fd95c/MainApplication" managed-name="Emergency_cameroun.MainApplication, Emergency_cameroun" managed-type-token-id="33554442" />
+  </java-to-managed>
+  <managed-to-java>
+    <entry java-name="crc64039ef207ee0fd95c/MainActivity" managed-name="Emergency_cameroun.MainActivity, Emergency_cameroun" managed-type-token-id="33554441" />
+    <entry java-name="crc64039ef207ee0fd95c/MainApplication" managed-name="Emergency_cameroun.MainApplication, Emergency_cameroun" managed-type-token-id="33554442" />
+  </managed-to-java>
+</api>

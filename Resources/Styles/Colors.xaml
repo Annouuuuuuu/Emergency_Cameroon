@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <Color x:Key="Primary">#BD3334</Color>
+    <Color x:Key="PrimaryDark">#A72829</Color>
+    <Color x:Key="PrimaryDarkText">#111111</Color>
+    <Color x:Key="Secondary">#E5B3B7</Color>
+    <Color x:Key="SecondaryDarkText">#BD3334</Color>
+    <Color x:Key="Tertiary">#F1F1F1</Color>
+    <Color x:Key="White">#FFFFFF</Color>
+    <Color x:Key="Black">#111111</Color>
+    <Color x:Key="CanvasColor">#FFFFFF</Color>
+    <Color x:Key="ForestColor">#BD3334</Color>
+    <Color x:Key="EmergencyColor">#BD3334</Color>
+    <Color x:Key="SoftGreenColor">#E5B3B7</Color>
+    <Color x:Key="InkColor">#111111</Color>
+    <Color x:Key="MutedColor">#777777</Color>
+    <Color x:Key="BorderColor">#F1F1F1</Color>
+    <Color x:Key="Gray100">#F1F1F1</Color>
+    <Color x:Key="Gray200">#E5B3B7</Color>
+    <Color x:Key="Gray300">#CCCCCC</Color>
+    <Color x:Key="Gray400">#999999</Color>
+    <Color x:Key="Gray500">#777777</Color>
+    <Color x:Key="Gray600">#555555</Color>
+    <Color x:Key="Gray900">#222222</Color>
+    <Color x:Key="Gray950">#111111</Color>
+    <Color x:Key="MidnightBlue">#222222</Color>
+    <Color x:Key="OffBlack">#111111</Color>
+    <Color x:Key="Magenta">#BD3334</Color>
+
+    <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource Primary}" />
+    <SolidColorBrush x:Key="SecondaryBrush" Color="{StaticResource Secondary}" />
+    <SolidColorBrush x:Key="TertiaryBrush" Color="{StaticResource Tertiary}" />
+    <SolidColorBrush x:Key="WhiteBrush" Color="{StaticResource White}" />
+    <SolidColorBrush x:Key="BlackBrush" Color="{StaticResource Black}" />
+</ResourceDictionary>
