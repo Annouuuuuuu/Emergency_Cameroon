@@ -3,6 +3,25 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
 
+    <Style x:Key="PhoneViewportStyle" TargetType="Grid">
+        <Setter Property="BackgroundColor" Value="{StaticResource CanvasWhite}" />
+    </Style>
+
+    <Style x:Key="PhoneDisplayFrameStyle" TargetType="Border">
+        <Setter Property="HorizontalOptions" Value="Center" />
+        <Setter Property="VerticalOptions" Value="Center" />
+        <Setter Property="BackgroundColor" Value="{StaticResource CanvasWhite}" />
+        <Setter Property="Stroke" Value="Transparent" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style x:Key="PhoneScreenHostStyle" TargetType="ContentView">
+        <Setter Property="HorizontalOptions" Value="Fill" />
+        <Setter Property="VerticalOptions" Value="Fill" />
+        <Setter Property="BackgroundColor" Value="{StaticResource CanvasWhite}" />
+    </Style>
+
     <Style TargetType="ActivityIndicator">
         <Setter Property="Color" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource White}}" />
     </Style>

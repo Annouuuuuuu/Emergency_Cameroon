@@ -7,19 +7,17 @@
     Padding="0"
     Shell.NavBarIsVisible="False"
     Shell.TabBarIsVisible="False">
-    <Grid x:Name="Viewport" BackgroundColor="White" SizeChanged="OnViewportSizeChanged">
+    <Grid
+        x:Name="Viewport"
+        Style="{StaticResource PhoneViewportStyle}"
+        SizeChanged="OnViewportSizeChanged"
+        >
         <Border
             x:Name="PresentationFrame"
-            HorizontalOptions="Center"
-            VerticalOptions="Center"
-            BackgroundColor="White"
-            StrokeThickness="0"
-            Padding="0">
+            Style="{StaticResource PhoneDisplayFrameStyle}">
             <ContentView
                 x:Name="ScreenHost"
-                HorizontalOptions="Fill"
-                VerticalOptions="Fill"
-                BackgroundColor="White" />
+                Style="{StaticResource PhoneScreenHostStyle}" />
         </Border>
     </Grid>
 </ContentPage>

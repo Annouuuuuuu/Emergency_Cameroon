@@ -17,7 +17,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Emergency_cameroun")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0+340eb65780b8135d4e9739860b5705ae10478879")]
 [assembly: System.Reflection.AssemblyProductAttribute("Emergency_cameroun")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Emergency_cameroun")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
