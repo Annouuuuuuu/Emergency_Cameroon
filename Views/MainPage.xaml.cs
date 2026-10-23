@@ -122,39 +122,31 @@ public partial class MainPage : ContentPage
 		if (_sizingViewport || Viewport.Width <= 0 || Viewport.Height <= 0)
 			return;
 
-		var availableWidth = Viewport.Width;
-		var availableHeight = Viewport.Height;
-		var usableWidth = Math.Max(1, availableWidth - ViewportInset);
-		var usableHeight = Math.Max(1, availableHeight - ViewportInset);
-		var scale = Math.Min(1, Math.Min(usableWidth / CanvasWidth, usableHeight / CanvasHeight));
+		// Taille max = smartphone (393x852)
+		var availableWidth = Math.Min(Viewport.Width, CanvasWidth);
+		var availableHeight = Math.Min(Viewport.Height, CanvasHeight);
+		var scale = Math.Min(availableWidth / CanvasWidth, availableHeight / CanvasHeight);
 
-		var width = CanvasWidth * scale;
-		var height = CanvasHeight * scale;
-
-		bool scaleChanged = Math.Abs(_canvasScale - scale) >= 0.005;
-		bool sizeChanged = Math.Abs(ScreenHost.WidthRequest - width) >= 0.5 ||
-		                   Math.Abs(ScreenHost.HeightRequest - height) >= 0.5;
-		
-		if (!scaleChanged && !sizeChanged)
-			return;
-
-		_canvasScale = scale;
+		_canvasScale = scale > 0 ? scale : 1;
 
 		_sizingViewport = true;
-		ScreenHost.WidthRequest = width;
-		ScreenHost.HeightRequest = height;
+		ScreenHost.WidthRequest = CanvasWidth * _canvasScale;
+		ScreenHost.HeightRequest = CanvasHeight * _canvasScale;
 
-		PresentationFrame.TranslationX = 0;
+		// Centrage de l'écran
 		PresentationFrame.HorizontalOptions = LayoutOptions.Center;
 		PresentationFrame.VerticalOptions = LayoutOptions.Center;
-
-		PresentationFrame.WidthRequest = width;
-		PresentationFrame.HeightRequest = height;
+		PresentationFrame.WidthRequest = CanvasWidth * _canvasScale;
+		PresentationFrame.HeightRequest = CanvasHeight * _canvasScale;
+		PresentationFrame.TranslationX = 0;
 		
+		// Bordure visuelle si écran plus grand que smartphone
+		PresentationFrame.Stroke = Viewport.Width > CanvasWidth ? SoftBorder : Colors.Transparent;
+		PresentationFrame.StrokeThickness = Viewport.Width > CanvasWidth ? 1 : 0;
+		PresentationFrame.StrokeShape = new RoundRectangle { CornerRadius = 20 };
 		_sizingViewport = false;
 
-		if (scaleChanged)
-			ShowScreen(_viewModel.CurrentScreen);
+		ShowScreen(_viewModel.CurrentScreen);
 	}
 
 	private void ScheduleIntroductionAdvance(AppScreen screen)
@@ -207,22 +199,53 @@ public partial class MainPage : ContentPage
 	private Grid CreateSettings()
 	{
 		var root = CreateCanvas();
-		AddLabel(root, "Paramètres", PxX(48), PxY(76), PxX(297), PxY(42), 24, Red, FontAttributes.Bold, TextAlignment.Center);
-		AddLabel(root, "Gérez votre compte et vos informations d'urgence.", PxX(42), PxY(130), PxX(309), PxY(46), 15, SecondaryText, FontAttributes.None, TextAlignment.Center);
+		var content = new VerticalStackLayout
+		{
+			Spacing = 20,
+			Padding = new Thickness(40, 20),
+			VerticalOptions = LayoutOptions.Center,
+			HorizontalOptions = LayoutOptions.Fill
+		};
+
+		content.Children.Add(new Label { Text = "Paramètres", FontSize = ScaleFont(24), FontAttributes = FontAttributes.Bold, TextColor = Red, HorizontalTextAlignment = TextAlignment.Center });
+		content.Children.Add(new Label { Text = "Gérez votre compte et vos informations d'urgence.", FontSize = ScaleFont(15), TextColor = SecondaryText, HorizontalTextAlignment = TextAlignment.Center, Margin = new Thickness(0, 0, 0, 20) });
 		
-		AddButton(root, "Mon profil", PxX(44), PxY(220), PxX(305), PxY(64), LightGray, Ink, 17, () => ShowScreen(AppScreen.Profile));
-		AddButton(root, "Profil d'urgence", PxX(44), PxY(310), PxX(305), PxY(64), LightGray, Ink, 17, () => ShowScreen(AppScreen.Profile));
-		AddButton(root, "Contact et carte d'urgence", PxX(44), PxY(400), PxX(305), PxY(64), LightGray, Ink, 17, () => ShowScreen(AppScreen.EmergencyContacts));
-		AddButton(root, "À propos", PxX(44), PxY(490), PxX(305), PxY(64), LightGray, Ink, 17, () => _viewModel.AboutCommand.Execute(null));
-		
-		AddBackButton(root, PxY(740), () => ShowScreen(AppScreen.EmergencyHome));
+		content.Children.Add(AddButtonContent("Mon profil", LightGray, Ink, () => ShowScreen(AppScreen.Profile)));
+		content.Children.Add(AddButtonContent("Profil d'urgence", LightGray, Ink, () => ShowScreen(AppScreen.Profile)));
+		content.Children.Add(AddButtonContent("Contact et carte d'urgence", LightGray, Ink, () => ShowScreen(AppScreen.EmergencyContacts)));
+		content.Children.Add(AddButtonContent("À propos", LightGray, Ink, () => _viewModel.AboutCommand.Execute(null)));
+		content.Children.Add(AddButtonContent("‹ Retour", White, Red, () => ShowScreen(AppScreen.EmergencyHome), true));
+
+		root.Children.Add(content);
 		return root;
+	}
+
+	private Button AddButtonContent(string text, Color bg, Color textColor, Action onClick, bool outlined = false)
+	{
+		var btn = new Button
+		{
+			Text = text,
+			FontSize = ScaleFont(17),
+			TextColor = textColor,
+			BackgroundColor = bg,
+			BorderColor = outlined ? Red : Colors.Transparent,
+			BorderWidth = outlined ? 2 : 0,
+			CornerRadius = 10,
+			HeightRequest = 60,
+			HorizontalOptions = LayoutOptions.Fill
+		};
+		btn.Clicked += (_, _) => onClick();
+		return btn;
 	}
 
 	private Grid CreateCanvas()
 	{
-		var root = new Grid { BackgroundColor = White };
-		root.Children.Add(new AbsoluteLayout { BackgroundColor = White });
+		var root = new Grid 
+		{ 
+			BackgroundColor = White,
+			HorizontalOptions = LayoutOptions.Fill,
+			VerticalOptions = LayoutOptions.Fill
+		};
 
 		bool isInputScreen = _viewModel.CurrentScreen is
 			AppScreen.Authentication or AppScreen.Login or AppScreen.Register or
@@ -245,192 +268,207 @@ public partial class MainPage : ContentPage
 	private Grid CreateIntroduction(string heading, string illustration, AppScreen next, double illustrationTop, double illustrationWidth = 0.44)
 	{
 		var root = CreateCanvas();
-		AddImage(root, "brand_logo.png", 0.255, 0.50, 0.058);
-		AddLabel(root, heading, 0.155, 0.355, 0.71, 0.095, 23, Ink, FontAttributes.Bold, TextAlignment.Center);
-		
-		var step = _viewModel.CurrentScreen switch
+		var content = new VerticalStackLayout
 		{
-			AppScreen.IntroductionHelp => 1,
-			AppScreen.IntroductionCalls => 2,
-			_ => 3
+			VerticalOptions = LayoutOptions.Center,
+			Spacing = 30,
+			Padding = new Thickness(30)
 		};
-		AddLabel(root, $"{step} / 3", PxX(300), PxY(36), PxX(45), PxY(44), 14, SecondaryText, FontAttributes.None, TextAlignment.Center);
-		
-		AddButton(root, "Passer", PxX(44), PxY(756), PxX(110), PxY(40), White, Red, 15, () => ShowScreen(AppScreen.Authentication), outlined: true);
-		AddButton(root, "Suivant", PxX(239), PxY(756), PxX(110), PxY(40), Red, White, 15, () => ShowScreen(next));
 
-		var image = new Image { Source = illustration, Aspect = Aspect.AspectFit, InputTransparent = true };
-		var safeTop = Math.Max(illustrationTop, 0.50);
-		var safeWidth = Math.Min(illustrationWidth, 0.55);
-		Place(root, image, (1 - safeWidth) / 2, safeTop, safeWidth, 0.16);
+		content.Children.Add(new Image { Source = "brand_logo.png", HeightRequest = 50, Aspect = Aspect.AspectFit, HorizontalOptions = LayoutOptions.Center });
+		content.Children.Add(new Label { Text = heading, FontSize = ScaleFont(23), FontAttributes = FontAttributes.Bold, TextColor = Ink, HorizontalTextAlignment = TextAlignment.Center });
+		
+		var image = new Image { Source = illustration, Aspect = Aspect.AspectFit, HeightRequest = 180, HorizontalOptions = LayoutOptions.Center };
+		content.Children.Add(image);
+		
+		var step = _viewModel.CurrentScreen switch { AppScreen.IntroductionHelp => 1, AppScreen.IntroductionCalls => 2, _ => 3 };
+		content.Children.Add(new Label { Text = $"{step} / 3", FontSize = 14, TextColor = SecondaryText, HorizontalTextAlignment = TextAlignment.Center });
+
+		var buttons = new HorizontalStackLayout { Spacing = 20, HorizontalOptions = LayoutOptions.Center };
+		buttons.Children.Add(AddButtonContent("Passer", White, Red, () => ShowScreen(AppScreen.Authentication), true));
+		buttons.Children.Add(AddButtonContent("Suivant", Red, White, () => ShowScreen(next)));
+		content.Children.Add(buttons);
+
+		root.Children.Add(content);
 		return root;
 	}
 
 	private Grid CreateAuthentication()
 	{
 		var root = CreateCanvas();
-		AddBackButton(root, PxY(50), () => ShowScreen(AppScreen.IntroductionOffline));
-		
-		AddImage(root, "brand_logo.png", PxY(262), 192 / CanvasWidth, 42 / CanvasHeight);
-		AddButton(root, "Login", PxX(86), PxY(350), PxX(221), PxY(44), White, Red, 20, () => ShowScreen(AppScreen.Login), outlined: true);
-		AddButton(root, "Sign in", PxX(86), PxY(426), PxX(221), PxY(44), Red, White, 19, () => ShowScreen(AppScreen.Register));
-
-		AddLine(root, PxX(58), PxY(508), PxX(106));
-		AddLabel(root, "or", PxX(177), PxY(494), PxX(40), PxY(22), 18, MutedText, FontAttributes.None, TextAlignment.Center);
-		AddLine(root, PxX(235), PxY(508), PxX(100));
-
-		const double socialIconSize = 28;
-		const double socialTopPadding = 10;
-		const double socialGap = 16;
-		const double socialY = 528;
-		var socials = new (string File, string Provider)[]
+		var content = new VerticalStackLayout
 		{
-			("social_google.png", "Google"), ("social_microsoft.png", "Microsoft"),
-			("social_facebook.png", "Facebook"), ("social_apple.png", "Apple")
+			VerticalOptions = LayoutOptions.Center,
+			Spacing = 20,
+			Padding = new Thickness(40)
 		};
-		double socialCenterY = socialY + socialTopPadding + MinTouchTargetPx / 2;
-		double socialStartX = (CanvasWidth - (socials.Length * socialIconSize + (socials.Length - 1) * socialGap)) / 2;
-		for (int i = 0; i < socials.Length; i++)
-		{
-			double sx = socialStartX + i * (socialIconSize + socialGap);
-			var social = socials[i];
-			AddSocialImageButton(root, social.File, social.Provider, sx + socialIconSize / 2, socialCenterY, socialIconSize);
-		}
 
-		AddLabel(root, "(c) 2026 - Emergency Cameroon", PxX(88), PxY(804), PxX(215), PxY(17), 14, MutedText, FontAttributes.None, TextAlignment.Center);
+		content.Children.Add(new Image { Source = "brand_logo.png", HeightRequest = 42, Aspect = Aspect.AspectFit, HorizontalOptions = LayoutOptions.Center, Margin = new Thickness(0, 0, 0, 40) });
+		
+		content.Children.Add(AddButtonContent("Login", White, Red, () => ShowScreen(AppScreen.Login), true));
+		content.Children.Add(AddButtonContent("Sign in", Red, White, () => ShowScreen(AppScreen.Register)));
+
+		content.Children.Add(new Label { Text = "or", FontSize = 18, TextColor = MutedText, HorizontalTextAlignment = TextAlignment.Center, Margin = new Thickness(0, 15) });
+
+		var socials = new HorizontalStackLayout { Spacing = 25, HorizontalOptions = LayoutOptions.Center };
+		socials.Children.Add(new Image { Source = "social_google.png", HeightRequest = 28, WidthRequest = 28 });
+		socials.Children.Add(new Image { Source = "social_microsoft.png", HeightRequest = 28, WidthRequest = 28 });
+		socials.Children.Add(new Image { Source = "social_facebook.png", HeightRequest = 28, WidthRequest = 28 });
+		socials.Children.Add(new Image { Source = "social_apple.png", HeightRequest = 28, WidthRequest = 28 });
+		content.Children.Add(socials);
+
+		content.Children.Add(AddButtonContent("‹ Retour", Colors.Transparent, Red, () => ShowScreen(AppScreen.IntroductionOffline), true));
+		root.Children.Add(content);
 		return root;
 	}
 
 	private Grid CreateLogin()
 	{
 		var root = CreateCanvas();
-		AddBackButton(root, PxY(50), () => ShowScreen(AppScreen.Authentication));
+		var content = new VerticalStackLayout { VerticalOptions = LayoutOptions.Center, Spacing = 15, Padding = new Thickness(40) };
+
+		content.Children.Add(new Image { Source = "brand_logo.png", HeightRequest = 42, Aspect = Aspect.AspectFit, HorizontalOptions = LayoutOptions.Center, Margin = new Thickness(0, 0, 0, 20) });
 		
-		AddImage(root, "brand_logo.png", PxY(214), 192 / CanvasWidth, 42 / CanvasHeight);
-		AddLabel(root, "We're glad to see\nyou again.", PxX(92), PxY(295), PxX(209), PxY(60), 24, Red, FontAttributes.None, TextAlignment.Center);
+		content.Children.Add(new Label { Text = "We're glad to see you again.", FontSize = ScaleFont(24), TextColor = Red, HorizontalTextAlignment = TextAlignment.Center, Margin = new Thickness(0,0,0,20) });
 
-		AddLabel(root, "User Name", PxX(56), PxY(400), PxX(120), PxY(28), 16, Ink);
-		var username = AddEntry(root, "User Name", PxX(56), PxY(438), PxX(281), PxY(44));
-		username.Keyboard = Keyboard.Text;
-		username.ReturnType = ReturnType.Next;
-		SemanticProperties.SetDescription(username, "Nom d'utilisateur");
-		username.Text = _viewModel.LoginUsername;
+		content.Children.Add(new Label { Text = "User Name", FontSize = ScaleFont(16), TextColor = Ink });
+		var username = new Entry { BackgroundColor = Colors.Transparent, Text = _viewModel.LoginUsername };
 		username.TextChanged += (_, e) => _viewModel.LoginUsername = e.NewTextValue ?? string.Empty;
+		content.Children.Add(new Border { Stroke = StrongBorder, StrokeThickness = 0.7, BackgroundColor = White, StrokeShape = new RoundRectangle { CornerRadius = 9 }, Content = username });
 
-		AddLabel(root, "Password", PxX(56), PxY(486), PxX(120), PxY(28), 16, Ink);
-		var password = AddEntry(root, "Password", PxX(56), PxY(524), PxX(281), PxY(44), isPassword: true);
-		password.ReturnType = ReturnType.Go;
-		SemanticProperties.SetDescription(password, "Mot de passe");
-		password.Text = _viewModel.LoginPassword;
+		content.Children.Add(new Label { Text = "Password", FontSize = ScaleFont(16), TextColor = Ink, Margin = new Thickness(0, 10, 0, 0) });
+		var password = new Entry { BackgroundColor = Colors.Transparent, IsPassword = true, Text = _viewModel.LoginPassword };
 		password.TextChanged += (_, e) => _viewModel.LoginPassword = e.NewTextValue ?? string.Empty;
+		content.Children.Add(new Border { Stroke = StrongBorder, StrokeThickness = 0.7, BackgroundColor = White, StrokeShape = new RoundRectangle { CornerRadius = 9 }, Content = password });
 
-		AddButton(root, "Log in", PxX(58), PxY(590), PxX(277), PxY(48), Red, White, 22, () => _viewModel.LoginCommand.Execute(null));
+		var loginBtn = AddButtonContent("Log in", Red, White, () => {
+			_viewModel.LoginCommand.Execute(null);
+			ShowScreen(AppScreen.EmergencyHome);
+		});
+		loginBtn.Margin = new Thickness(0, 20, 0, 0);
+		content.Children.Add(loginBtn);
+
+		content.Children.Add(AddButtonContent("‹ Retour", Colors.Transparent, Red, () => ShowScreen(AppScreen.Authentication), true));
+		root.Children.Add(content);
 		return root;
 	}
 
 	private Grid CreateRegister()
 	{
 		var root = CreateCanvas();
-		AddBackButton(root, PxY(50), () => ShowScreen(AppScreen.Authentication));
+		var content = new VerticalStackLayout { VerticalOptions = LayoutOptions.Center, Spacing = 15, Padding = new Thickness(40) };
+
+		content.Children.Add(new Image { Source = "brand_logo.png", HeightRequest = 42, Aspect = Aspect.AspectFit, HorizontalOptions = LayoutOptions.Center, Margin = new Thickness(0, 0, 0, 20) });
 		
-		AddImage(root, "brand_logo.png", PxY(185), 192 / CanvasWidth, 42 / CanvasHeight);
-		AddLabel(root, "Welcome.", PxX(92), PxY(253), PxX(209), PxY(32), 24, Red, FontAttributes.None, TextAlignment.Center);
+		content.Children.Add(new Label { Text = "Welcome.", FontSize = ScaleFont(24), TextColor = Red, HorizontalTextAlignment = TextAlignment.Center, Margin = new Thickness(0,0,0,20) });
 
-		var username = AddLabelledEntry(root, "User Name / Email", 311);
-		var phone = AddLabelledEntry(root, "Phone Number", 396);
-		phone.Keyboard = Keyboard.Telephone;
-		var password = AddLabelledEntry(root, "Password", 481, isPassword: true);
-		var confirm = AddLabelledEntry(root, "Confirm Password", 566, isPassword: true);
+		var username = new Entry { Placeholder = "User Name / Email", BackgroundColor = Colors.Transparent };
+		username.TextChanged += (_, e) => _viewModel.SetRegistrationValue("User Name / Email", e.NewTextValue ?? string.Empty);
+		content.Children.Add(new Border { Stroke = StrongBorder, StrokeThickness = 0.7, BackgroundColor = White, StrokeShape = new RoundRectangle { CornerRadius = 9 }, Content = username });
 
-		var termsRow = new Grid
-		{
-			ColumnDefinitions =
-			{
-				new ColumnDefinition { Width = new GridLength(MinTouchTargetPx * _canvasScale) },
-				new ColumnDefinition { Width = GridLength.Star }
-			}
-		};
-		var terms = new CheckBox
-		{
-			Color = Red,
-			BackgroundColor = Colors.Transparent,
-			HorizontalOptions = LayoutOptions.Center,
-			VerticalOptions = LayoutOptions.Center,
-			WidthRequest = MinTouchTargetPx * _canvasScale,
-			HeightRequest = MinTouchTargetPx * _canvasScale
-		};
+		var phone = new Entry { Placeholder = "Phone Number", BackgroundColor = Colors.Transparent, Keyboard = Keyboard.Telephone };
+		phone.TextChanged += (_, e) => _viewModel.SetRegistrationValue("Phone Number", e.NewTextValue ?? string.Empty);
+		content.Children.Add(new Border { Stroke = StrongBorder, StrokeThickness = 0.7, BackgroundColor = White, StrokeShape = new RoundRectangle { CornerRadius = 9 }, Content = phone });
+
+		var pwd = new Entry { Placeholder = "Password", IsPassword = true, BackgroundColor = Colors.Transparent };
+		pwd.TextChanged += (_, e) => _viewModel.SetRegistrationValue("Password", e.NewTextValue ?? string.Empty);
+		content.Children.Add(new Border { Stroke = StrongBorder, StrokeThickness = 0.7, BackgroundColor = White, StrokeShape = new RoundRectangle { CornerRadius = 9 }, Content = pwd });
+
+		var confirm = new Entry { Placeholder = "Confirm Password", IsPassword = true, BackgroundColor = Colors.Transparent };
+		confirm.TextChanged += (_, e) => _viewModel.SetRegistrationValue("Confirm Password", e.NewTextValue ?? string.Empty);
+		content.Children.Add(new Border { Stroke = StrongBorder, StrokeThickness = 0.7, BackgroundColor = White, StrokeShape = new RoundRectangle { CornerRadius = 9 }, Content = confirm });
+
+		var terms = new CheckBox { Color = Red };
 		terms.IsChecked = _viewModel.AcceptedTerms;
 		terms.CheckedChanged += (_, e) => _viewModel.AcceptedTerms = e.Value;
-		termsRow.Add(terms, 0, 0);
-		var termsLabel = new Label
-		{
-			Text = "J'accepte les termes & conditions d'utilisation",
-			FontSize = ScaleFont(14),
-			TextColor = Ink,
-			VerticalTextAlignment = TextAlignment.Center,
-			LineHeight = 1.05,
-			LineBreakMode = LineBreakMode.WordWrap,
-			Margin = new Thickness(8 * _canvasScale, 0, 0, 0)
-		};
-		termsRow.Add(termsLabel, 1, 0);
-		Place(root, termsRow, PxX(52), PxY(670), PxX(289), PxY(48));
+		var termsLabel = new Label { Text = "J'accepte les termes & conditions", FontSize = ScaleFont(14), TextColor = Ink, VerticalTextAlignment = TextAlignment.Center };
+		var termsRow = new HorizontalStackLayout { Spacing = 10, Children = { terms, termsLabel }, Margin = new Thickness(0, 10) };
+		content.Children.Add(termsRow);
 
-		AddButton(root, "Sign in", PxX(56), PxY(730), PxX(277), PxY(48), Red, White, 22, () => _viewModel.RegisterCommand.Execute(null));
+		var signInBtn = AddButtonContent("Sign in", Red, White, () => {
+			_viewModel.RegisterCommand.Execute(null);
+			ShowScreen(AppScreen.EmergencyHome);
+		});
+		signInBtn.Margin = new Thickness(0, 10, 0, 0);
+		content.Children.Add(signInBtn);
+
+		content.Children.Add(AddButtonContent("‹ Retour", Colors.Transparent, Red, () => ShowScreen(AppScreen.Authentication), true));
+		root.Children.Add(content);
 		return root;
 	}
 
 	private Grid CreateProfile()
 	{
 		var root = CreateCanvas();
-		AddBackButton(root, PxY(50), () => ShowScreen(AppScreen.Settings));
+		var content = new VerticalStackLayout { VerticalOptions = LayoutOptions.Center, Spacing = 15, Padding = new Thickness(40) };
 		
-		AddLabel(root, "Let's configure your Emergency Profile", PxX(62), PxY(90), PxX(268), PxY(76), 24, Red, FontAttributes.None, TextAlignment.Center);
-		AddImage(root, "profile_avatar.png", PxY(210), 94 / CanvasWidth, 94 / CanvasHeight);
+		content.Children.Add(new Label { Text = "Let's configure your Emergency Profile", FontSize = ScaleFont(24), TextColor = Red, HorizontalTextAlignment = TextAlignment.Center, Margin = new Thickness(0,0,0,20) });
+		content.Children.Add(new Image { Source = "profile_avatar.png", HeightRequest = 94, WidthRequest = 94, HorizontalOptions = LayoutOptions.Center, Margin = new Thickness(0,0,0,20) });
 
-		AddUnderlinedEntry(root, "The User name", PxX(62), PxY(376), isItalic: false, preset: _viewModel.Username, onChanged: value => _viewModel.Username = value);
-		AddUnderlinedEntry(root, "Blood Group", PxX(62), PxY(426), isItalic: true, preset: _viewModel.BloodGroup, onChanged: value => _viewModel.BloodGroup = value);
-		AddUnderlinedEntry(root, "NIC Number", PxX(62), PxY(476), isItalic: true, preset: string.Empty);
-		AddUnderlinedEntry(root, "Current Treatment", PxX(62), PxY(529), isItalic: true, preset: _viewModel.CurrentTreatment, onChanged: value => _viewModel.CurrentTreatment = value);
-		AddUnderlinedEntry(root, "Allergy", PxX(62), PxY(579), isItalic: true, preset: _viewModel.Allergy, onChanged: value => _viewModel.Allergy = value);
+		var usernameEntry = new Entry { Placeholder = "The User name", BackgroundColor = Colors.Transparent, Text = _viewModel.Username };
+		usernameEntry.TextChanged += (_, e) => _viewModel.Username = e.NewTextValue ?? string.Empty;
+		content.Children.Add(usernameEntry);
 
-		AddButton(root, "Next", PxX(268), PxY(730), PxX(91), PxY(45), Red, White, 18, () => ShowScreen(AppScreen.EmergencyContacts));
+		var bloodEntry = new Entry { Placeholder = "Blood Group", BackgroundColor = Colors.Transparent, Text = _viewModel.BloodGroup };
+		bloodEntry.TextChanged += (_, e) => _viewModel.BloodGroup = e.NewTextValue ?? string.Empty;
+		content.Children.Add(bloodEntry);
+
+		content.Children.Add(new Entry { Placeholder = "NIC Number", BackgroundColor = Colors.Transparent });
+
+		var treatmentEntry = new Entry { Placeholder = "Current Treatment", BackgroundColor = Colors.Transparent, Text = _viewModel.CurrentTreatment };
+		treatmentEntry.TextChanged += (_, e) => _viewModel.CurrentTreatment = e.NewTextValue ?? string.Empty;
+		content.Children.Add(treatmentEntry);
+
+		content.Children.Add(AddButtonContent("Next", Red, White, () => ShowScreen(AppScreen.EmergencyContacts)));
+		content.Children.Add(AddButtonContent("‹ Retour", Colors.Transparent, Red, () => ShowScreen(AppScreen.Settings), true));
+		root.Children.Add(content);
 		return root;
 	}
 
 	private Grid CreateEmergencyContacts()
 	{
 		var root = CreateCanvas();
-		AddBackButton(root, PxY(50), () => ShowScreen(AppScreen.Profile));
+		var content = new VerticalStackLayout { VerticalOptions = LayoutOptions.Center, Spacing = 20, Padding = new Thickness(40) };
 		
-		AddLabel(root, "Let's configure your Emergency Profile", PxX(62), PxY(90), PxX(268), PxY(76), 24, Red, FontAttributes.None, TextAlignment.Center);
-		AddImage(root, "profile_avatar.png", PxY(210), 94 / CanvasWidth, 94 / CanvasHeight);
+		content.Children.Add(new Label { Text = "Let's configure your Emergency Profile", FontSize = ScaleFont(24), TextColor = Red, HorizontalTextAlignment = TextAlignment.Center });
 
-		AddImageButton(root, "add_contact.png", PxX(49), PxY(426), PxX(123), PxY(100), async () => await _viewModel.AddEmergencyDetailAsync("Add Emergency Contact"));
-		AddImageButton(root, "add_card.png", PxX(220), PxY(426), PxX(123), PxY(100), async () => await _viewModel.AddEmergencyDetailAsync("Add Emergency Card"));
+		content.Children.Add(new Button { Text = "Add Emergency Contact", HeightRequest = 100, BackgroundColor = LightGray });
+		content.Children.Add(new Button { Text = "Add Emergency Card", HeightRequest = 100, BackgroundColor = LightGray });
 
-		if (!string.IsNullOrWhiteSpace(_viewModel.EmergencyContact))
-			AddLabel(root, _viewModel.EmergencyContact, PxX(49), PxY(530), PxX(123), PxY(30), 12, MutedText, FontAttributes.None, TextAlignment.Center);
-
-		if (!string.IsNullOrWhiteSpace(_viewModel.EmergencyCard))
-			AddLabel(root, _viewModel.EmergencyCard, PxX(220), PxY(530), PxX(123), PxY(30), 12, MutedText, FontAttributes.None, TextAlignment.Center);
-
-		AddButton(root, "Next", PxX(268), PxY(730), PxX(91), PxY(45), Red, White, 18, () => ShowScreen(AppScreen.EmergencyHome));
+		content.Children.Add(AddButtonContent("Next", Red, White, () => ShowScreen(AppScreen.EmergencyHome)));
+		content.Children.Add(AddButtonContent("‹ Retour", Colors.Transparent, Red, () => ShowScreen(AppScreen.Profile), true));
+		root.Children.Add(content);
 		return root;
 	}
 
-	private Grid CreateEmergencyHome()
+		private Grid CreateEmergencyHome()
 	{
 		var root = CreateCanvas();
-		AddProfileHeader(root);
 		
-		AddLabel(root, "Urgence ? Choisissez un service à appeler.", PxX(35), PxY(230), PxX(323), PxY(44), 16, BodyTextMuted, FontAttributes.None, TextAlignment.Center);
-		
-		const double sosDiameterPx = 220;
-		const double sosTopPx = 380;
-		double sosDiameterCanvas = sosDiameterPx / CanvasWidth;
-		double sosHeightCanvas = sosDiameterPx / CanvasHeight;
-		double sosLeftCanvas = (1 - sosDiameterCanvas) / 2;
+		// Structure du root : Contenu (étoile) + Navbar (80px)
+		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Star });
+		root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(80) });
 
+		// Structure du mainLayout : Header (Auto) + Contenu (Star)
+		var mainLayout = new Grid
+		{
+			RowDefinitions =
+			{
+				new RowDefinition { Height = GridLength.Auto }, // Pour le header
+				new RowDefinition { Height = GridLength.Star }  // Pour le contenu
+			},
+			Padding = new Thickness(20)
+		};
+
+		// 1. Ajout du Header dans la ligne 0
+		var headerGrid = new Grid();
+		AddProfileHeader(headerGrid);
+		mainLayout.Add(headerGrid, 0, 0);
+
+		// 2. Ajout du contenu dans la ligne 1
+		var centerContent = new VerticalStackLayout { VerticalOptions = LayoutOptions.Center, Spacing = 30 };
+		centerContent.Children.Add(new Label { Text = "Urgence ? Choisissez un service à appeler.", FontSize = ScaleFont(16), TextColor = BodyTextMuted, HorizontalTextAlignment = TextAlignment.Center });
+		
 		var sosButton = new Button
 		{
 			Text = "SOS",
@@ -439,44 +477,76 @@ public partial class MainPage : ContentPage
 			TextColor = White,
 			BackgroundColor = EmergencyRed,
 			BorderWidth = 0,
-			CornerRadius = (int)(sosDiameterPx / 2 * _canvasScale),
-			Padding = 0,
-			HorizontalOptions = LayoutOptions.Fill,
-			VerticalOptions = LayoutOptions.Fill
+			CornerRadius = 110,
+			WidthRequest = 220,
+			HeightRequest = 220,
+			HorizontalOptions = LayoutOptions.Center
 		};
 		sosButton.Clicked += (_, _) => _viewModel.SosCommand.Execute(null);
-		Place(root, sosButton, sosLeftCanvas, PxY(sosTopPx), sosDiameterCanvas, sosHeightCanvas);
-
-		AddLabel(root, "Appuyez pour choisir Police, Pompiers ou Ambulance", PxX(40), PxY(sosTopPx + sosDiameterPx + 25), PxX(313), PxY(48), 14, BodyTextMuted, FontAttributes.None, TextAlignment.Center);
+		centerContent.Children.Add(sosButton);
 		
+		centerContent.Children.Add(new Label { Text = "Appuyez pour choisir Police, Pompiers ou Ambulance", FontSize = ScaleFont(14), TextColor = BodyTextMuted, HorizontalTextAlignment = TextAlignment.Center });
+
+		mainLayout.Add(centerContent, 0, 1);
+		
+		// Ajout du contenu sur la ligne 0 du root
+		root.Add(mainLayout, 0, 0);
+
+		// Ajout de la navbar sur la ligne 1 du root
 		AddBottomNavigation(root, AppScreen.EmergencyHome);
+		root.SetRow(root.Children.Last(), 1);
+
 		return root;
 	}
 
 	private Grid CreateDirectory()
 	{
 		var root = CreateCanvas();
-		_directoryEntries = new VerticalStackLayout
+		
+		// Structure du root : Contenu (étoile) + Navbar (80px)
+		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Star });
+		root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(80) });
+
+		var mainLayout = new Grid
 		{
-			Spacing = 10 * _canvasScale,
-			Padding = new Thickness(0, 0, 0, 16 * _canvasScale),
-			Margin = new Thickness(0, 15 * _canvasScale, 0, 0)
+			RowDefinitions =
+			{
+				new RowDefinition { Height = GridLength.Auto },
+				new RowDefinition { Height = GridLength.Star }
+			},
+			Padding = new Thickness(20, 30, 20, 0)
 		};
-		_directoryEmptyState = new Label { Text = "Aucun numéro ne correspond à votre recherche.", FontSize = ScaleFont(14), TextColor = BodyTextMuted, IsVisible = false, Margin = new Thickness(0, 12 * _canvasScale) };
+
+		var topContainer = new VerticalStackLayout { Spacing = 15 };
+		var headerGrid = new Grid { HeightRequest = 60 };
+		AddProfileHeader(headerGrid);
+		topContainer.Children.Add(headerGrid);
+		
+		topContainer.Children.Add(new Label { Text = "Annuaire Téléphonique", FontSize = ScaleFont(18), TextColor = MutedText, HorizontalOptions = LayoutOptions.Center });
+		
+		var searchGrid = new Grid();
+		AddReferenceSearch(searchGrid);
+		topContainer.Children.Add(searchGrid);
+
+		mainLayout.Add(topContainer, 0, 0);
+
+		_directoryEntries = new VerticalStackLayout { Spacing = 10 * _canvasScale, Padding = new Thickness(0, 15, 0, 16) };
+		_directoryEmptyState = new Label { Text = "Aucun numéro ne correspond à votre recherche.", FontSize = ScaleFont(14), TextColor = BodyTextMuted, IsVisible = false };
 		
 		var directoryContent = new VerticalStackLayout { Spacing = 0 };
 		directoryContent.Children.Add(_directoryEntries);
 		directoryContent.Children.Add(_directoryEmptyState);
 		
 		var directoryScroll = new ScrollView { Content = directoryContent, VerticalScrollBarVisibility = ScrollBarVisibility.Never };
-		
-		Place(root, directoryScroll, PxX(28), PxY(295), PxX(337), PxY(430));
+		mainLayout.Add(directoryScroll, 0, 1);
+
 		PopulateDirectory(_directoryEntries);
 		
-		AddProfileHeader(root);
-		AddLabel(root, "Annuaire Téléphonique", PxX(94), PxY(127), PxX(205), PxY(22), 18, MutedText, FontAttributes.None, TextAlignment.Center);
-		AddReferenceSearch(root, 54, 242);
+		root.Add(mainLayout, 0, 0);
+		
 		AddBottomNavigation(root, AppScreen.Directory);
+		root.SetRow(root.Children.Last(), 1);
+
 		return root;
 	}
 
@@ -487,14 +557,7 @@ public partial class MainPage : ContentPage
 		var visible = entries.Where(item => string.IsNullOrWhiteSpace(_viewModel.SearchText) || $"{item.Name} {item.Number}".Contains(_viewModel.SearchText, StringComparison.CurrentCultureIgnoreCase)).ToArray();
 		if (visible.Length == 0) return;
 
-		var sectionHeading = new Label
-		{
-			Text = title,
-			FontSize = ScaleFont(18),
-			FontAttributes = FontAttributes.Bold,
-			TextColor = titleColor,
-			Margin = new Thickness(0, 12 * _canvasScale, 0, 6 * _canvasScale)
-		};
+		var sectionHeading = new Label { Text = title, FontSize = ScaleFont(18), FontAttributes = FontAttributes.Bold, TextColor = titleColor, Margin = new Thickness(0, 12 * _canvasScale, 0, 6 * _canvasScale) };
 		SemanticProperties.SetHeadingLevel(sectionHeading, SemanticHeadingLevel.Level2);
 		host.Children.Add(sectionHeading);
 
@@ -522,34 +585,41 @@ public partial class MainPage : ContentPage
 	private Grid CreateInformation()
 	{
 		var root = CreateCanvas();
-		var articleContent = new VerticalStackLayout
+		
+		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Star });
+		root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(80) });
+
+		var mainLayout = new Grid
 		{
-			Spacing = 12 * _canvasScale,
-			Padding = new Thickness(0, 0, 0, 16 * _canvasScale),
-			Margin = new Thickness(0, 15 * _canvasScale, 0, 0)
+			RowDefinitions =
+			{
+				new RowDefinition { Height = GridLength.Auto },
+				new RowDefinition { Height = GridLength.Star }
+			},
+			Padding = new Thickness(20, 30, 20, 0)
 		};
-		var articleHeading = new Label
-		{
-			Text = "Conduite à tenir",
-			FontSize = ScaleFont(18),
-			FontAttributes = FontAttributes.Bold,
-			TextColor = Ink,
-			Margin = new Thickness(0, 0, 0, 5 * _canvasScale)
-		};
-		SemanticProperties.SetHeadingLevel(articleHeading, SemanticHeadingLevel.Level2);
+
+		var topContainer = new VerticalStackLayout { Spacing = 15 };
+		var headerGrid = new Grid { HeightRequest = 60 };
+		AddProfileHeader(headerGrid);
+		topContainer.Children.Add(headerGrid);
+		
+		topContainer.Children.Add(new Label { Text = "Centre d'information", FontSize = ScaleFont(18), TextColor = MutedText, HorizontalOptions = LayoutOptions.Center });
+		
+		var searchGrid = new Grid();
+		AddReferenceSearch(searchGrid);
+		topContainer.Children.Add(searchGrid);
+
+		mainLayout.Add(topContainer, 0, 0);
+
+		var articleContent = new VerticalStackLayout { Spacing = 15 * _canvasScale, Padding = new Thickness(20, 15, 20, 16) };
+
+		var articleHeading = new Label { Text = "Conduite à tenir", FontSize = ScaleFont(18), FontAttributes = FontAttributes.Bold, TextColor = Ink, Margin = new Thickness(0, 0, 0, 5 * _canvasScale) };
 		articleContent.Children.Add(articleHeading);
 
-		_informationBody = new Label
-		{
-			Text = "Consultez les conseils de prévention et les gestes utiles en situation d'urgence.",
-			FontSize = ScaleFont(16),
-			TextColor = Ink,
-			LineHeight = 1.05,
-			LineBreakMode = LineBreakMode.WordWrap,
-			Margin = new Thickness(0, 4, 0, 12)
-		};
+		_informationBody = new Label { Text = "Consultez les conseils de prévention et les gestes utiles en situation d'urgence.", FontSize = ScaleFont(16), TextColor = Ink, LineHeight = 1.05, LineBreakMode = LineBreakMode.WordWrap, Margin = new Thickness(0, 0, 0, 15 * _canvasScale) };
 		articleContent.Children.Add(_informationBody);
-		
+
 		_informationEmptyState = new Label { Text = "Aucun conseil ne correspond à votre recherche.", FontSize = ScaleFont(14), TextColor = BodyTextMuted, IsVisible = false };
 		articleContent.Children.Add(_informationEmptyState);
 
@@ -563,84 +633,112 @@ public partial class MainPage : ContentPage
 		};
 		RefreshArticleTiles();
 		articleContent.Children.Add(_informationTiles);
+
 		var articleScroll = new ScrollView { Content = articleContent, VerticalScrollBarVisibility = ScrollBarVisibility.Never };
+		mainLayout.Add(articleScroll, 0, 1);
+
+		root.Add(mainLayout, 0, 0);
 		
-		Place(root, articleScroll, PxX(40), PxY(245), PxX(313), PxY(510));
-		
-		AddProfileHeader(root);
-		AddLabel(root, "Centre d'information", PxX(105.5), PxY(129), PxX(182), PxY(22), 18, MutedText, FontAttributes.None, TextAlignment.Center);
-		AddReferenceSearch(root, 48, 193);
 		AddBottomNavigation(root, AppScreen.Information);
+		root.SetRow(root.Children.Last(), 1);
+
 		return root;
 	}
 
 	private void AddProfileHeader(Grid root)
 	{
-		var avatar = new Image { Source = "profile_avatar.png", Aspect = Aspect.AspectFit };
+		var headerGrid = new Grid
+		{
+			ColumnDefinitions = 
+			{
+				new ColumnDefinition { Width = GridLength.Auto },
+				new ColumnDefinition { Width = GridLength.Star },
+				new ColumnDefinition { Width = GridLength.Auto }
+			},
+			VerticalOptions = LayoutOptions.Center,
+			Margin = new Thickness(0, 10, 0, 10)
+		};
+
+		var avatar = new Image { Source = "profile_avatar.png", Aspect = Aspect.AspectFit, WidthRequest = 46, HeightRequest = 46, Margin = new Thickness(0, 0, 10, 0) };
 		AutomationProperties.SetName(avatar, "Ouvrir le profil");
 		var avatarTap = new TapGestureRecognizer();
 		avatarTap.Tapped += (_, _) => ShowScreen(AppScreen.Profile);
 		avatar.GestureRecognizers.Add(avatarTap);
-		Place(root, avatar, PxX(25), PxY(41), PxX(46), PxY(46));
+		headerGrid.Add(avatar, 0, 0);
 
-		AddLabel(root, _viewModel.Username, PxX(96), PxY(52), PxX(170), PxY(20), 13, Ink);
+		var usernameLabel = new Label { Text = _viewModel.Username, FontSize = ScaleFont(14), TextColor = Ink, VerticalTextAlignment = TextAlignment.Center };
+		headerGrid.Add(usernameLabel, 1, 0);
 
-		double effectiveScale = _canvasScale > 0 ? _canvasScale : 1;
-		double touchTargetCanvas = MinTouchTargetPx / effectiveScale;
-
-		var settingsContainer = new Grid { WidthRequest = touchTargetCanvas * _canvasScale, HeightRequest = touchTargetCanvas * _canvasScale };
-		settingsContainer.Children.Add(new Image
-		{
-			Source = "profile_settings.png",
-			Aspect = Aspect.AspectFit,
-			WidthRequest = 32 * _canvasScale,
-			HeightRequest = 32 * _canvasScale,
-			HorizontalOptions = LayoutOptions.Center,
-			VerticalOptions = LayoutOptions.Center,
-			InputTransparent = true
-		});
-		var settings = new ImageButton
-		{
-			BackgroundColor = Colors.Transparent,
-			Padding = 0,
-			MinimumWidthRequest = touchTargetCanvas * _canvasScale,
-			MinimumHeightRequest = touchTargetCanvas * _canvasScale
-		};
+		var settings = new ImageButton { Source = "profile_settings.png", BackgroundColor = Colors.Transparent, WidthRequest = 44, HeightRequest = 44, HorizontalOptions = LayoutOptions.End };
 		SemanticProperties.SetDescription(settings, "Ouvrir les paramètres du profil");
 		settings.Clicked += (_, _) => ShowScreen(AppScreen.Settings);
-		settingsContainer.Children.Add(settings);
-		Place(root, settingsContainer, PxX(295), PxY(42), PxX(touchTargetCanvas), PxY(touchTargetCanvas));
+		headerGrid.Add(settings, 2, 0);
+
+		root.Add(headerGrid);
 	}
 
 	private void AddBottomNavigation(Grid root, AppScreen selected)
 	{
+		// Ce conteneur va prendre toute la largeur et la hauteur de la ligne qui lui est attribuée
+		var navWrapper = new Grid
+		{
+			VerticalOptions = LayoutOptions.Fill,      
+			HorizontalOptions = LayoutOptions.Fill,    
+			ZIndex = 100
+		};
+
+		// Le fond arrondi (prend toute la hauteur du wrapper)
 		var background = new Border
 		{
 			BackgroundColor = SubtleSurface,
 			Stroke = Colors.Transparent,
 			StrokeThickness = 0,
-			StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(150 * _canvasScale, 150 * _canvasScale, 0, 0) }
+			StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(150, 150, 0, 0) },
+			VerticalOptions = LayoutOptions.Fill,         
+			HorizontalOptions = LayoutOptions.Fill
 		};
-		Place(root, background, 0, PxY(777), 1, PxY(75));
+		navWrapper.Add(background);
 
-		AddNavigationIcon(root, "nav_contacts.png", CanvasWidth / 6, AppScreen.Directory, selected);
-		AddNavigationIcon(root, "nav_home.png", CanvasWidth / 2, AppScreen.EmergencyHome, selected);
-		AddNavigationIcon(root, "nav_help.png", CanvasWidth * 5 / 6, AppScreen.Information, selected);
+		// Les icônes
+		var iconsGrid = new Grid
+		{
+			VerticalOptions = LayoutOptions.Fill,         
+			HorizontalOptions = LayoutOptions.Fill,
+			ColumnDefinitions =
+			{
+				new ColumnDefinition { Width = GridLength.Star },
+				new ColumnDefinition { Width = GridLength.Star },
+				new ColumnDefinition { Width = GridLength.Star }
+			}
+		};
+
+		iconsGrid.Add(CreateNavIconButton("nav_contacts.png", AppScreen.Directory, selected), 0, 0);
+		iconsGrid.Add(CreateNavIconButton("nav_home.png", AppScreen.EmergencyHome, selected), 1, 0);
+		iconsGrid.Add(CreateNavIconButton("nav_help.png", AppScreen.Information, selected), 2, 0);
+
+		navWrapper.Add(iconsGrid);
+
+		// On l'ajoute au root
+		root.Add(navWrapper);
 	}
 
-	private void AddNavigationIcon(Grid root, string source, double x, AppScreen target, AppScreen selected)
+	private View CreateNavIconButton(string source, AppScreen target, AppScreen selected)
 	{
-		const double iconVisualSize = 48;
-		double effectiveScale = _canvasScale > 0 ? _canvasScale : 1;
-		double touchTargetCanvas = MinTouchTargetPx / effectiveScale;
+		var container = new Grid
+		{
+			WidthRequest = 48,
+			HeightRequest = 48,
+			VerticalOptions = LayoutOptions.Center,
+			HorizontalOptions = LayoutOptions.Center,
+			ZIndex = 101
+		};
 
-		var container = new Grid { WidthRequest = touchTargetCanvas * _canvasScale, HeightRequest = touchTargetCanvas * _canvasScale };
 		container.Children.Add(new Image
 		{
 			Source = source,
 			Aspect = Aspect.AspectFit,
-			WidthRequest = iconVisualSize * _canvasScale,
-			HeightRequest = iconVisualSize * _canvasScale,
+			WidthRequest = 32, // Taille visuelle réduite
+			HeightRequest = 32,
 			HorizontalOptions = LayoutOptions.Center,
 			VerticalOptions = LayoutOptions.Center,
 			Opacity = selected == target ? 1 : 0.82,
@@ -651,8 +749,8 @@ public partial class MainPage : ContentPage
 		{
 			BackgroundColor = Colors.Transparent,
 			Padding = 0,
-			MinimumWidthRequest = touchTargetCanvas * _canvasScale,
-			MinimumHeightRequest = touchTargetCanvas * _canvasScale
+			MinimumWidthRequest = 44,
+			MinimumHeightRequest = 44
 		};
 		SemanticProperties.SetDescription(button, target switch
 		{
@@ -663,22 +761,21 @@ public partial class MainPage : ContentPage
 		button.Clicked += (_, _) => ShowScreen(target);
 		container.Children.Add(button);
 
-		Place(root, container, PxX(x - touchTargetCanvas / 2), PxY(753 + 24 - touchTargetCanvas / 2), PxX(touchTargetCanvas), PxY(touchTargetCanvas));
+		return container;
 	}
 
-	private void AddReferenceSearch(Grid root, double x, double y)
+	private void AddReferenceSearch(Grid root)
 	{
 		var searchContainer = new Grid
 		{
-			BackgroundColor = White,
+			BackgroundColor = Colors.Transparent,
+			HeightRequest = 56,
 			ZIndex = 10,
-			HeightRequest = 56 * _canvasScale,
-			ColumnDefinitions =
+			ColumnDefinitions = 
 			{
-				new ColumnDefinition { Width = new GridLength(217 * _canvasScale) },
-				new ColumnDefinition { Width = new GridLength(44 * _canvasScale) },
-				new ColumnDefinition { Width = new GridLength(44 * _canvasScale) },
-				new ColumnDefinition { Width = GridLength.Star }
+				new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) },
+				new ColumnDefinition { Width = GridLength.Auto },
+				new ColumnDefinition { Width = GridLength.Auto }
 			}
 		};
 
@@ -690,13 +787,11 @@ public partial class MainPage : ContentPage
 			TextColor = Ink,
 			PlaceholderColor = SubtleText,
 			BackgroundColor = Colors.Transparent,
-			Margin = new Thickness(6 * _canvasScale, 0),
+			Margin = new Thickness(6, 0),
 			ClearButtonVisibility = ClearButtonVisibility.WhileEditing,
-			ReturnType = ReturnType.Search
+			ReturnType = ReturnType.Search,
+			Text = _viewModel.SearchText
 		};
-		SemanticProperties.SetDescription(search, "Rechercher dans la liste");
-		SemanticProperties.SetHint(search, "Filtre les numéros ou conseils affichés.");
-		search.Text = _viewModel.SearchText;
 		search.TextChanged += (_, e) => { _viewModel.SearchText = e.NewTextValue?.Trim() ?? string.Empty; RefreshContentResults(); };
 
 		var searchBorder = new Border
@@ -704,7 +799,7 @@ public partial class MainPage : ContentPage
 			BackgroundColor = LightGray,
 			StrokeThickness = 0,
 			Padding = 0,
-			HeightRequest = 40 * _canvasScale,
+			HeightRequest = 40,
 			VerticalOptions = LayoutOptions.Center,
 			Content = search
 		};
@@ -714,37 +809,31 @@ public partial class MainPage : ContentPage
 		{
 			Source = "search.png",
 			BackgroundColor = Colors.Transparent,
-			Padding = 4 * _canvasScale,
+			Padding = 4,
 			Aspect = Aspect.AspectFit,
-			WidthRequest = 44 * _canvasScale,
-			HeightRequest = 44 * _canvasScale,
+			WidthRequest = 44,
+			HeightRequest = 44,
 			HorizontalOptions = LayoutOptions.Center,
-			VerticalOptions = LayoutOptions.Center,
-			MinimumWidthRequest = 44 * _canvasScale,
-			MinimumHeightRequest = 44 * _canvasScale
+			VerticalOptions = LayoutOptions.Center
 		};
 		searchButton.Clicked += (_, _) => RefreshContentResults();
-		SemanticProperties.SetDescription(searchButton, "Lancer la recherche");
 		searchContainer.Add(searchButton, 1, 0);
 
 		var filterButton = new ImageButton
 		{
 			Source = "filter.png",
 			BackgroundColor = Colors.Transparent,
-			Padding = 3 * _canvasScale,
+			Padding = 3,
 			Aspect = Aspect.AspectFit,
-			WidthRequest = 44 * _canvasScale,
-			HeightRequest = 44 * _canvasScale,
+			WidthRequest = 44,
+			HeightRequest = 44,
 			HorizontalOptions = LayoutOptions.Center,
-			VerticalOptions = LayoutOptions.Center,
-			MinimumWidthRequest = 44 * _canvasScale,
-			MinimumHeightRequest = 44 * _canvasScale
+			VerticalOptions = LayoutOptions.Center
 		};
 		filterButton.Clicked += async (_, _) => await _viewModel.HandleFilterAsync();
-		SemanticProperties.SetDescription(filterButton, "Filtrer la liste");
 		searchContainer.Add(filterButton, 2, 0);
 
-		Place(root, searchContainer, PxX(x), PxY(y - 5), PxX(340), PxY(56));
+		root.Add(searchContainer);
 	}
 
 	private void RefreshContentResults()
@@ -778,7 +867,6 @@ public partial class MainPage : ContentPage
 		};
 		card.Content = label;
 
-		SemanticProperties.SetDescription(card, title.Replace('\n', ' '));
 		var tap = new TapGestureRecognizer();
 		tap.Tapped += async (_, _) => await _viewModel.ShowArticleNoticeAsync(title.Replace('\n', ' '));
 		card.GestureRecognizers.Add(tap);
@@ -826,211 +914,6 @@ public partial class MainPage : ContentPage
 		
 		if (_directoryEmptyState is not null)
 			_directoryEmptyState.IsVisible = host.Children.Count == 0 && !string.IsNullOrWhiteSpace(_viewModel.SearchText);
-	}
-
-	private Entry AddLabelledEntry(Grid root, string label, double y, bool isPassword = false)
-	{
-		AddLabel(root, label, PxX(56), PxY(y), PxX(281), PxY(20), 16, Ink);
-		var entry = AddEntry(root, label, PxX(56), PxY(y + 32), PxX(281), PxY(44), isPassword);
-		entry.ReturnType = label == "Confirm Password" ? ReturnType.Go : ReturnType.Next;
-		SemanticProperties.SetDescription(entry, label);
-		entry.Text = _viewModel.GetRegistrationValue(label);
-		entry.TextChanged += (_, e) => _viewModel.SetRegistrationValue(label, e.NewTextValue ?? string.Empty);
-		return entry;
-	}
-
-	private Entry AddEntry(Grid root, string placeholder, double x, double y, double width, double height, bool isPassword = false)
-	{
-		var entry = new Entry
-		{
-			Placeholder = string.Empty,
-			FontSize = ScaleFont(16),
-			TextColor = Ink,
-			BackgroundColor = Colors.Transparent,
-			IsPassword = isPassword,
-			VerticalTextAlignment = TextAlignment.Center,
-			Margin = new Thickness(7 * _canvasScale, 0),
-			ClearButtonVisibility = ClearButtonVisibility.Never
-		};
-		var field = new Grid();
-		field.Children.Add(new Border
-		{
-			Stroke = StrongBorder,
-			StrokeThickness = 0.7,
-			BackgroundColor = White,
-			StrokeShape = new RoundRectangle { CornerRadius = 9 },
-			HeightRequest = 36 * _canvasScale,
-			VerticalOptions = LayoutOptions.Center,
-			InputTransparent = true
-		});
-		field.Children.Add(entry);
-		Place(root, field, x, y, width, height);
-		return entry;
-	}
-
-	private Entry AddUnderlinedEntry(Grid root, string placeholder, double x, double y, bool isItalic, string preset, Action<string>? onChanged = null)
-	{
-		var entry = new Entry
-		{
-			Placeholder = placeholder,
-			FontSize = ScaleFont(13),
-			FontAttributes = isItalic ? FontAttributes.Italic : FontAttributes.None,
-			TextColor = Ink,
-			PlaceholderColor = isItalic ? DisabledText : Ink,
-			BackgroundColor = Colors.Transparent,
-			Margin = new Thickness(0),
-			VerticalTextAlignment = TextAlignment.Center
-		};
-		SemanticProperties.SetDescription(entry, placeholder);
-		if (!string.IsNullOrWhiteSpace(preset) && preset != "The User name")
-			entry.Text = preset;
-
-		if (onChanged is not null)
-			entry.TextChanged += (_, e) => onChanged(e.NewTextValue ?? string.Empty);
-
-		var holder = new Grid
-		{
-			RowDefinitions =
-			{
-				new RowDefinition { Height = new GridLength(16, GridUnitType.Absolute) },
-				new RowDefinition { Height = new GridLength(1, GridUnitType.Absolute) },
-				new RowDefinition { Height = new GridLength(17, GridUnitType.Absolute) }
-			}
-		};
-		holder.Add(entry, 0, 0);
-		Grid.SetRowSpan(entry, 3);
-		holder.Add(new BoxView { Color = Divider, HeightRequest = 1 }, 0, 1);
-		Place(root, holder, x, y, PxX(268), PxY(34));
-		return entry;
-	}
-
-	private Button AddButton(Grid root, string text, double x, double y, double width, double height, Color background, Color textColor, double fontSize, Action onClick, bool outlined = false, double? cornerRadius = null)
-	{
-		double scaledFontSize = Math.Max(12, ScaleFont(fontSize));
-		var button = new Button
-		{
-			Text = text,
-			FontSize = scaledFontSize,
-			TextColor = textColor,
-			BackgroundColor = background,
-			BorderColor = outlined ? Red : Colors.Transparent,
-			BorderWidth = outlined ? 2 : 0,
-			CornerRadius = (int)((cornerRadius ?? (outlined ? 10 : 11)) * _canvasScale),
-			Padding = new Thickness(8, 0),
-			FontAttributes = FontAttributes.None,
-			VerticalOptions = LayoutOptions.Fill,
-			HorizontalOptions = LayoutOptions.Fill
-		};
-		button.Clicked += (_, _) => onClick();
-		Place(root, button, x, y, width, height);
-		return button;
-	}
-
-	private void AddBackButton(Grid root, double y, Action onClick)
-	{
-		AddButton(root, "‹", PxX(44), y, PxX(45), PxY(45), White, Red, 28, onClick, outlined: true);
-	}
-
-	private void AddImage(Grid root, string source, double y, double width, double height)
-	{
-		var image = new Image { Source = source, Aspect = Aspect.AspectFit };
-		Place(root, image, (1 - width) / 2, y, width, height);
-	}
-
-	private void AddImageButton(Grid root, string source, double x, double y, double width, double height, Action onClick)
-	{
-		var button = new ImageButton
-		{
-			Source = source,
-			BackgroundColor = Colors.Transparent,
-			Padding = 0,
-			Aspect = Aspect.AspectFit,
-			MinimumWidthRequest = MinTouchTargetPx,
-			MinimumHeightRequest = MinTouchTargetPx
-		};
-		button.Clicked += (_, _) => onClick();
-		Place(root, button, x, y, width, height);
-	}
-
-	private void AddSocialImageButton(Grid root, string source, string provider, double centerX, double centerY, double iconSize)
-	{
-		double effectiveScale = _canvasScale > 0 ? _canvasScale : 1;
-		double touchTargetCanvas = MinTouchTargetPx / effectiveScale;
-
-		var touchTarget = new Grid { WidthRequest = touchTargetCanvas * _canvasScale, HeightRequest = touchTargetCanvas * _canvasScale };
-		touchTarget.Children.Add(new Image
-		{
-			Source = source,
-			Aspect = Aspect.AspectFit,
-			WidthRequest = iconSize * _canvasScale,
-			HeightRequest = iconSize * _canvasScale,
-			HorizontalOptions = LayoutOptions.Center,
-			VerticalOptions = LayoutOptions.Center,
-			Margin = new Thickness(0, 10 * _canvasScale, 0, 0),
-			InputTransparent = true
-		});
-
-		var button = new ImageButton
-		{
-			BackgroundColor = Colors.Transparent,
-			Padding = 0,
-			MinimumWidthRequest = touchTargetCanvas * _canvasScale,
-			MinimumHeightRequest = touchTargetCanvas * _canvasScale
-		};
-		SemanticProperties.SetDescription(button, $"Continuer avec {provider}");
-		button.Clicked += async (_, _) => await _viewModel.ShowProviderNoticeAsync(provider);
-		touchTarget.Children.Add(button);
-
-		Place(root, touchTarget, PxX(centerX - touchTargetCanvas / 2), PxY(centerY - touchTargetCanvas / 2), PxX(touchTargetCanvas), PxY(touchTargetCanvas));
-	}
-
-	private void AddLabel(Grid root, string text, double x, double y, double width, double height, double fontSize, Color color, FontAttributes fontAttributes = FontAttributes.None, TextAlignment alignment = TextAlignment.Start)
-	{
-		var label = new Label
-		{
-			Text = text,
-			FontSize = ScaleFont(fontSize),
-			FontAttributes = fontAttributes,
-			TextColor = color,
-			HorizontalTextAlignment = alignment,
-			VerticalTextAlignment = TextAlignment.Center,
-			LineHeight = 1.05,
-			LineBreakMode = LineBreakMode.WordWrap
-		};
-		Place(root, label, x, y, width, height);
-	}
-
-	private void AddLine(Grid root, double x, double y, double width)
-	{
-		var line = new BoxView { Color = Divider, HeightRequest = 1, VerticalOptions = LayoutOptions.Center };
-		Place(root, line, x, y, width, 1 / CanvasHeight);
-	}
-
-	private void Place(Grid root, View view, double x, double y, double width, double height)
-	{
-		var absolute = root.Children.OfType<AbsoluteLayout>().First();
-		double effectiveScale = _canvasScale > 0 ? _canvasScale : 1;
-
-		if (view is Button or ImageButton or CheckBox || (view is Border border && border.Content is Entry))
-		{
-			double minWidthCanvas = (MinTouchTargetPx / effectiveScale) / CanvasWidth;
-			double minHeightCanvas = (MinTouchTargetPx / effectiveScale) / CanvasHeight;
-			width = Math.Max(width, minWidthCanvas);
-			height = Math.Max(height, minHeightCanvas);
-		}
-
-		x = Math.Clamp(x, 0, Math.Max(0, 1 - width));
-		y = Math.Clamp(y, 0, Math.Max(0, 1 - height));
-		Place(absolute, view, x, y, width, height);
-	}
-
-	private void Place(AbsoluteLayout host, View view, double x, double y, double width, double height)
-	{
-		x = Math.Clamp(x, 0, Math.Max(0, 1 - width));
-		y = Math.Clamp(y, 0, Math.Max(0, 1 - height));
-		AbsoluteLayout.SetLayoutBounds(view, new Rect(x, y, width, height));
-		AbsoluteLayout.SetLayoutFlags(view, AbsoluteLayoutFlags.All);
-		host.Children.Add(view);
 	}
 
 	private static double PxX(double pixels) => pixels / CanvasWidth;
