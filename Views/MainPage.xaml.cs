@@ -214,6 +214,7 @@ public partial class MainPage : ContentPage
 		content.Children.Add(AddButtonContent("Profil d'urgence", LightGray, Ink, () => ShowScreen(AppScreen.Profile)));
 		content.Children.Add(AddButtonContent("Contact et carte d'urgence", LightGray, Ink, () => ShowScreen(AppScreen.EmergencyContacts)));
 		content.Children.Add(AddButtonContent("À propos", LightGray, Ink, () => _viewModel.AboutCommand.Execute(null)));
+		content.Children.Add(AddButtonContent("Se déconnecter", Red, White, () => _viewModel.LogoutCommand.Execute(null)));
 		content.Children.Add(AddButtonContent("‹ Retour", White, Red, () => ShowScreen(AppScreen.EmergencyHome), true));
 
 		root.Children.Add(content);
@@ -221,6 +222,20 @@ public partial class MainPage : ContentPage
 	}
 
 	private Button AddButtonContent(string text, Color bg, Color textColor, Action onClick, bool outlined = false)
+	{
+		var btn = CreateButtonContent(text, bg, textColor, outlined);
+		btn.Clicked += (_, _) => onClick();
+		return btn;
+	}
+
+	private Button AddAsyncButtonContent(string text, Color bg, Color textColor, Func<Task> onClick, bool outlined = false)
+	{
+		var btn = CreateButtonContent(text, bg, textColor, outlined);
+		btn.Clicked += async (_, _) => await onClick();
+		return btn;
+	}
+
+	private Button CreateButtonContent(string text, Color bg, Color textColor, bool outlined)
 	{
 		var btn = new Button
 		{
@@ -234,7 +249,6 @@ public partial class MainPage : ContentPage
 			HeightRequest = 60,
 			HorizontalOptions = LayoutOptions.Fill
 		};
-		btn.Clicked += (_, _) => onClick();
 		return btn;
 	}
 
@@ -341,10 +355,7 @@ public partial class MainPage : ContentPage
 		password.TextChanged += (_, e) => _viewModel.LoginPassword = e.NewTextValue ?? string.Empty;
 		content.Children.Add(new Border { Stroke = StrongBorder, StrokeThickness = 0.7, BackgroundColor = White, StrokeShape = new RoundRectangle { CornerRadius = 9 }, Content = password });
 
-		var loginBtn = AddButtonContent("Log in", Red, White, () => {
-			_viewModel.LoginCommand.Execute(null);
-			ShowScreen(AppScreen.EmergencyHome);
-		});
+		var loginBtn = AddAsyncButtonContent("Log in", Red, White, _viewModel.LoginAsync);
 		loginBtn.Margin = new Thickness(0, 20, 0, 0);
 		content.Children.Add(loginBtn);
 
@@ -385,10 +396,7 @@ public partial class MainPage : ContentPage
 		var termsRow = new HorizontalStackLayout { Spacing = 10, Children = { terms, termsLabel }, Margin = new Thickness(0, 10) };
 		content.Children.Add(termsRow);
 
-		var signInBtn = AddButtonContent("Sign in", Red, White, () => {
-			_viewModel.RegisterCommand.Execute(null);
-			ShowScreen(AppScreen.EmergencyHome);
-		});
+		var signInBtn = AddAsyncButtonContent("Sign in", Red, White, _viewModel.RegisterAsync);
 		signInBtn.Margin = new Thickness(0, 10, 0, 0);
 		content.Children.Add(signInBtn);
 
@@ -413,14 +421,41 @@ public partial class MainPage : ContentPage
 		bloodEntry.TextChanged += (_, e) => _viewModel.BloodGroup = e.NewTextValue ?? string.Empty;
 		content.Children.Add(bloodEntry);
 
-		content.Children.Add(new Entry { Placeholder = "NIC Number", BackgroundColor = Colors.Transparent });
+		var nationalIdEntry = new Entry
+		{
+			Placeholder = "NIC Number",
+			BackgroundColor = Colors.Transparent,
+			Text = _viewModel.NationalIdNumber
+		};
+		nationalIdEntry.TextChanged += (_, e) => _viewModel.NationalIdNumber = e.NewTextValue ?? string.Empty;
+		content.Children.Add(nationalIdEntry);
 
 		var treatmentEntry = new Entry { Placeholder = "Current Treatment", BackgroundColor = Colors.Transparent, Text = _viewModel.CurrentTreatment };
 		treatmentEntry.TextChanged += (_, e) => _viewModel.CurrentTreatment = e.NewTextValue ?? string.Empty;
 		content.Children.Add(treatmentEntry);
 
-		content.Children.Add(AddButtonContent("Next", Red, White, () => ShowScreen(AppScreen.EmergencyContacts)));
-		content.Children.Add(AddButtonContent("‹ Retour", Colors.Transparent, Red, () => ShowScreen(AppScreen.Settings), true));
+		var allergyEntry = new Entry
+		{
+			Placeholder = "Allergy",
+			BackgroundColor = Colors.Transparent,
+			Text = _viewModel.Allergy
+		};
+		allergyEntry.TextChanged += (_, e) => _viewModel.Allergy = e.NewTextValue ?? string.Empty;
+		content.Children.Add(allergyEntry);
+
+		content.Children.Add(AddAsyncButtonContent("Next", Red, White, _viewModel.SaveProfileAndContinueAsync));
+		content.Children.Add(AddAsyncButtonContent(
+			"‹ Retour",
+			Colors.Transparent,
+			Red,
+			async () =>
+			{
+				if (await _viewModel.SaveProfileAsync())
+				{
+					ShowScreen(AppScreen.Settings);
+				}
+			},
+			true));
 		root.Children.Add(content);
 		return root;
 	}
@@ -432,8 +467,41 @@ public partial class MainPage : ContentPage
 		
 		content.Children.Add(new Label { Text = "Let's configure your Emergency Profile", FontSize = ScaleFont(24), TextColor = Red, HorizontalTextAlignment = TextAlignment.Center });
 
-		content.Children.Add(new Button { Text = "Add Emergency Contact", HeightRequest = 100, BackgroundColor = LightGray });
-		content.Children.Add(new Button { Text = "Add Emergency Card", HeightRequest = 100, BackgroundColor = LightGray });
+		var contactButton = new Button
+		{
+			Text = string.IsNullOrWhiteSpace(_viewModel.EmergencyContact)
+				? "Add Emergency Contact"
+				: _viewModel.EmergencyContact,
+			HeightRequest = 100,
+			BackgroundColor = LightGray
+		};
+		contactButton.Clicked += async (_, _) =>
+		{
+			await _viewModel.AddEmergencyDetailAsync("Add Emergency Contact");
+			if (!string.IsNullOrWhiteSpace(_viewModel.EmergencyContact))
+			{
+				contactButton.Text = _viewModel.EmergencyContact;
+			}
+		};
+		content.Children.Add(contactButton);
+
+		var cardButton = new Button
+		{
+			Text = string.IsNullOrWhiteSpace(_viewModel.EmergencyCard)
+				? "Add Emergency Card"
+				: _viewModel.EmergencyCard,
+			HeightRequest = 100,
+			BackgroundColor = LightGray
+		};
+		cardButton.Clicked += async (_, _) =>
+		{
+			await _viewModel.AddEmergencyDetailAsync("Add Emergency Card");
+			if (!string.IsNullOrWhiteSpace(_viewModel.EmergencyCard))
+			{
+				cardButton.Text = _viewModel.EmergencyCard;
+			}
+		};
+		content.Children.Add(cardButton);
 
 		content.Children.Add(AddButtonContent("Next", Red, White, () => ShowScreen(AppScreen.EmergencyHome)));
 		content.Children.Add(AddButtonContent("‹ Retour", Colors.Transparent, Red, () => ShowScreen(AppScreen.Profile), true));

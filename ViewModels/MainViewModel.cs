@@ -1,16 +1,23 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using Emergency_cameroun.Models;
 using Emergency_cameroun.Services;
+using Microsoft.Extensions.Logging;
+using SQLite;
 
 namespace Emergency_cameroun.ViewModels;
 
 public sealed class MainViewModel : INotifyPropertyChanged
 {
 	private readonly IMauiInteractionService _interaction;
+	private readonly ILocalDataService _localData;
+	private readonly ILogger<MainViewModel> _logger;
+	private int? _currentUserId;
 	private AppScreen _currentScreen = AppScreen.IntroductionHelp;
 	private string _username = "The User name";
 	private string _bloodGroup = string.Empty;
+	private string _nationalIdNumber = string.Empty;
 	private string _currentTreatment = string.Empty;
 	private string _allergy = string.Empty;
 	private string _searchText = string.Empty;
@@ -26,14 +33,20 @@ public sealed class MainViewModel : INotifyPropertyChanged
 	private string? _selectedDirectorySection;
 	private readonly Dictionary<string, string> _registrationValues = new(StringComparer.Ordinal);
 
-	public MainViewModel(IMauiInteractionService interaction)
+	public MainViewModel(
+		IMauiInteractionService interaction,
+		ILocalDataService localData,
+		ILogger<MainViewModel> logger)
 	{
 		_interaction = interaction;
+		_localData = localData;
+		_logger = logger;
 		NavigateCommand = new Command<AppScreen>(NavigateTo);
 		AdvanceCommand = new Command(Advance);
 		GoBackCommand = new Command(GoBack);
 		LoginCommand = new Command(async () => await LoginAsync());
 		RegisterCommand = new Command(async () => await RegisterAsync());
+		LogoutCommand = new Command(async () => await LogoutAsync());
 		SosCommand = new Command(async () => await ChooseEmergencyServiceAsync());
 		AboutCommand = new Command(async () =>
 			await _interaction.DisplayAlertAsync("Emergency Cameroon", "Application d'assistance d'urgence.", "OK"));
@@ -46,6 +59,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 	public ICommand GoBackCommand { get; }
 	public ICommand LoginCommand { get; }
 	public ICommand RegisterCommand { get; }
+	public ICommand LogoutCommand { get; }
 	public ICommand SosCommand { get; }
 	public ICommand AboutCommand { get; }
 
@@ -57,6 +71,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
 	public string Username { get => _username; set => SetProperty(ref _username, value); }
 	public string BloodGroup { get => _bloodGroup; set => SetProperty(ref _bloodGroup, value); }
+	public string NationalIdNumber { get => _nationalIdNumber; set => SetProperty(ref _nationalIdNumber, value); }
 	public string CurrentTreatment { get => _currentTreatment; set => SetProperty(ref _currentTreatment, value); }
 	public string Allergy { get => _allergy; set => SetProperty(ref _allergy, value); }
 	public string SearchText { get => _searchText; set => SetProperty(ref _searchText, value); }
@@ -116,7 +131,25 @@ public sealed class MainViewModel : INotifyPropertyChanged
 			return;
 		}
 
-		NavigateTo(AppScreen.EmergencyHome);
+		try
+		{
+			var profile = await _localData.AuthenticateAsync(LoginUsername, LoginPassword);
+			if (profile is null)
+			{
+				await _interaction.DisplayAlertAsync("Log in", "The user name or password is incorrect.", "OK");
+				return;
+			}
+
+			ApplyProfile(profile);
+			LoginPassword = string.Empty;
+			NavigateTo(AppScreen.EmergencyHome);
+		}
+		catch (SQLiteException exception)
+		{
+			_logger.LogError(exception, "Local sign-in failed.");
+			await _interaction.DisplayAlertAsync(
+				"Log in unavailable", "The local account database could not be read.", "OK");
+		}
 	}
 
 	public async Task RegisterAsync()
@@ -130,8 +163,65 @@ public sealed class MainViewModel : INotifyPropertyChanged
 			return;
 		}
 
-		Username = RegistrationUsername;
+		try
+		{
+			var userId = await _localData.CreateAccountAsync(
+				RegistrationUsername, PhoneNumber, RegistrationPassword);
+			if (userId is null)
+			{
+				await _interaction.DisplayAlertAsync(
+					"Sign in", "An account with this user name or email already exists.", "OK");
+				return;
+			}
+
+			_currentUserId = userId.Value;
+			Username = RegistrationUsername.Trim();
+			LoginUsername = RegistrationUsername.Trim();
+			LoginPassword = string.Empty;
+			RegistrationPassword = string.Empty;
+			ConfirmPassword = string.Empty;
+			NavigateTo(AppScreen.EmergencyHome);
+		}
+		catch (SQLiteException exception)
+		{
+			_logger.LogError(exception, "Local account registration failed.");
+			await _interaction.DisplayAlertAsync(
+				"Sign in unavailable", "The local account could not be saved.", "OK");
+		}
+	}
+
+	public async Task SaveProfileAndContinueAsync()
+	{
+		if (!await SaveCurrentProfileAsync())
+		{
+			return;
+		}
+
 		NavigateTo(AppScreen.EmergencyContacts);
+	}
+
+	public Task<bool> SaveProfileAsync() => SaveCurrentProfileAsync();
+
+	public Task LogoutAsync()
+	{
+		_currentUserId = null;
+		Username = "The User name";
+		PhoneNumber = string.Empty;
+		BloodGroup = string.Empty;
+		NationalIdNumber = string.Empty;
+		CurrentTreatment = string.Empty;
+		Allergy = string.Empty;
+		EmergencyContact = null;
+		EmergencyCard = null;
+		LoginUsername = string.Empty;
+		LoginPassword = string.Empty;
+		RegistrationUsername = string.Empty;
+		RegistrationPassword = string.Empty;
+		ConfirmPassword = string.Empty;
+		_registrationValues.Clear();
+		AcceptedTerms = false;
+		NavigateTo(AppScreen.Authentication);
+		return Task.CompletedTask;
 	}
 
 	public async Task ChooseEmergencyServiceAsync()
@@ -188,7 +278,64 @@ public sealed class MainViewModel : INotifyPropertyChanged
 			EmergencyCard = value;
 		}
 
-		NavigateTo(AppScreen.EmergencyContacts);
+		if (await SaveCurrentProfileAsync())
+		{
+			NavigateTo(AppScreen.EmergencyContacts);
+		}
+	}
+
+	private async Task<bool> SaveCurrentProfileAsync()
+	{
+		if (_currentUserId is not int userId)
+		{
+			await _interaction.DisplayAlertAsync(
+				"Profile unavailable", "Sign in or create a local account before saving profile details.", "OK");
+			return false;
+		}
+
+		try
+		{
+			await _localData.SaveProfileAsync(new LocalUserProfile
+			{
+				Id = userId,
+				DisplayName = Username,
+				PhoneNumber = PhoneNumber,
+				BloodGroup = BloodGroup,
+				NationalIdNumber = NationalIdNumber,
+				CurrentTreatment = CurrentTreatment,
+				Allergy = Allergy,
+				EmergencyContact = EmergencyContact,
+				EmergencyCard = EmergencyCard
+			});
+			return true;
+		}
+		catch (SQLiteException exception)
+		{
+			_logger.LogError(exception, "Saving the local emergency profile failed.");
+			await _interaction.DisplayAlertAsync(
+				"Profile not saved", "The local emergency profile could not be saved.", "OK");
+			return false;
+		}
+		catch (InvalidOperationException exception)
+		{
+			_logger.LogError(exception, "The local account was unavailable while saving its profile.");
+			await _interaction.DisplayAlertAsync(
+				"Profile not saved", "The local account could not be found.", "OK");
+			return false;
+		}
+	}
+
+	private void ApplyProfile(LocalUserProfile profile)
+	{
+		_currentUserId = profile.Id;
+		Username = profile.DisplayName;
+		PhoneNumber = profile.PhoneNumber;
+		BloodGroup = profile.BloodGroup;
+		NationalIdNumber = profile.NationalIdNumber;
+		CurrentTreatment = profile.CurrentTreatment;
+		Allergy = profile.Allergy;
+		EmergencyContact = profile.EmergencyContact;
+		EmergencyCard = profile.EmergencyCard;
 	}
 
 	public async Task FilterDirectoryAsync()
